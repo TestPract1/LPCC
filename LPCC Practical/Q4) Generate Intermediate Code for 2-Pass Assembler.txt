@@ -1,0 +1,135 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <map>
+#include <vector>
+#include <iomanip>
+using namespace std;
+
+// Instruction set
+map<string, string> opcode = {
+    {"START", "01"},
+    {"READ", "02"},
+    {"MOVER", "03"},
+    {"SUB", "04"},
+    {"STOP", "05"},
+    {"DS", "06"},
+    {"END", "07"}
+};
+
+// Register table
+map<string, string> registers = {
+    {"AREG", "1"}, {"BREG", "2"}, {"CREG", "3"}, {"DREG", "4"}
+};
+
+struct Symbol {
+    string name;
+    int address;
+};
+
+vector<string> split(const string& line) {
+    stringstream ss(line);
+    string word;
+    vector<string> tokens;
+    while (ss >> word)
+        tokens.push_back(word);
+    return tokens;
+}
+
+int main() {
+    ifstream input("input.asm");
+    ofstream symtab("symtab.txt");
+    ofstream inter("intermediate.txt");
+
+    map<string, int> symbolTable;
+    vector<string> lines;
+    string line;
+    int locctr = 0;
+
+    // Pass 1: Build symbol table and get LOCCTR
+    while (getline(input, line)) {
+        if (line.empty()) continue;
+        lines.push_back(line);
+        vector<string> tokens = split(line);
+
+        if (tokens[0] == "START") {
+            locctr = stoi(tokens[1]);
+            inter << locctr << " (IS, " << opcode["START"] << ") " << tokens[1] << endl;
+        }
+        else if (tokens[0] == "END") {
+            inter << locctr << " (IS, " << opcode["END"] << ")" << endl;
+        }
+        else if (tokens[1] == "DS") {
+            symbolTable[tokens[0]] = locctr;
+            inter << locctr << " (DL, " << opcode["DS"] << ") " << tokens[2] << endl;
+            locctr++;
+        }
+        else {
+            if (tokens[0] != "" && opcode.find(tokens[0]) != opcode.end()) {
+                // Instruction with no label
+                locctr++;
+            } else {
+                // Label + instruction
+                symbolTable[tokens[0]] = locctr;
+                locctr++;
+            }
+        }
+    }
+
+    // Write symbol table to file
+    symtab << "Symbol\tAddress" << endl;
+    for (auto& sym : symbolTable) {
+        symtab << sym.first << "\t" << sym.second << endl;
+    }
+
+    // Pass 2: Generate intermediate code
+    cout << "\n--- Intermediate Code ---\n";
+    locctr = 0;
+    for (auto& codeLine : lines) {
+        vector<string> tokens = split(codeLine);
+
+        if (tokens[0] == "START") {
+            locctr = stoi(tokens[1]);
+            cout << locctr << " (IS,01) " << tokens[1] << endl;
+        }
+        else if (tokens[0] == "READ") {
+            cout << locctr << " (IS," << opcode["READ"] << ") (S," << symbolTable[tokens[1]] << ")\n";
+            locctr++;
+        }
+        else if (tokens[0] == "STOP") {
+            cout << locctr << " (IS," << opcode["STOP"] << ")\n";
+            locctr++;
+        }
+        else if (tokens[0] == "END") {
+            cout << locctr << " (IS," << opcode["END"] << ")\n";
+        }
+        else if (tokens[1] == "DS") {
+            // Already handled in Pass 1
+            locctr++;
+        }
+        else if (opcode.find(tokens[0]) != opcode.end()) {
+            // Instruction without label
+            string op = tokens[0];
+            string reg = tokens[1].substr(0, tokens[1].find(','));
+            string sym = tokens[2];
+
+            cout << locctr << " (IS," << opcode[op] << ") (" << registers[reg] << ") (S," << symbolTable[sym] << ")\n";
+            locctr++;
+        }
+        else {
+            // Label + instruction
+            string op = tokens[1];
+            string reg = tokens[2].substr(0, tokens[2].find(','));
+            string sym = tokens[3];
+
+            cout << locctr << " (IS," << opcode[op] << ") (" << registers[reg] << ") (S," << symbolTable[sym] << ")\n";
+            locctr++;
+        }
+    }
+
+    input.close();
+    symtab.close();
+    inter.close();
+
+    return 0;
+}

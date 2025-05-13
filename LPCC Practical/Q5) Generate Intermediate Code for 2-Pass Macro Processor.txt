@@ -1,0 +1,185 @@
+#include <iostream>
+#include <sstream>
+#include <vector>
+#include <map>
+#include <algorithm>
+
+using namespace std;
+
+struct MNTEntry {
+    string name;
+    int mdtIndex;
+};
+
+struct MDTEntry {
+    string line;
+};
+
+vector<MDTEntry> MDT;
+vector<MNTEntry> MNT;
+map<string, int> MNTMap;
+
+vector<string> ALA;  // For storing arguments in Pass 1
+
+vector<string> input = {
+    "LOAD A",
+    "MACRO ABC",
+    "LOAD p",
+    "SUB q",
+    "MEND",
+    "STORE B",
+    "MULT D",
+    "MACRO ADD1 ARG",
+    "LOAD X",
+    "STORE ARG",
+    "MEND",
+    "LOAD B",
+    "MACRO ADD5 A1, A2, A3",
+    "STORE A2",
+    "ADD1 5",
+    "ADD1 10",
+    "LOAD A1",
+    "LOAD A3",
+    "MEND",
+    "ADD1 t",
+    "ABC",
+    "ADD5 D1, D2, D3",
+    "END"
+};
+
+vector<string> split(const string& line, char delim = ' ') {
+    stringstream ss(line);
+    string word;
+    vector<string> tokens;
+    while (getline(ss, word, delim)) {
+        if (!word.empty()) tokens.push_back(word);
+    }
+    return tokens;
+}
+
+void pass1() {
+    bool inMacro = false;
+    ALA.clear();
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        string line = input[i];
+        vector<string> tokens = split(line);
+
+        if (tokens.empty()) continue;
+
+        if (tokens[0] == "MACRO") {
+            inMacro = true;
+            string macroHeader = tokens[1];
+            vector<string> def = split(macroHeader);
+            string macroName = def[0];
+
+            // Store macro name and MDT index
+            MNT.push_back({macroName, (int)MDT.size()});
+            MNTMap[macroName] = MNT.size() - 1;
+
+            // Store arguments
+            ALA.clear();
+            for (size_t j = 1; j < def.size(); ++j) {
+                string arg = def[j];
+                arg.erase(remove(arg.begin(), arg.end(), ','), arg.end());
+                ALA.push_back(arg);
+            }
+
+            // Read macro body
+            for (++i; i < input.size(); ++i) {
+                line = input[i];
+                vector<string> macroLine = split(line);
+                if (macroLine[0] == "MEND") {
+                    MDT.push_back({"MEND"});
+                    inMacro = false;
+                    break;
+                }
+
+                // Replace arguments with (P,i)
+                for (auto& tok : macroLine) {
+                    for (size_t a = 0; a < ALA.size(); ++a) {
+                        if (tok == ALA[a]) {
+                            tok = "(P," + to_string(a) + ")";
+                            break;
+                        }
+                    }
+                }
+
+                // Join tokens
+                ostringstream os;
+                for (auto& t : macroLine) os << t << " ";
+                MDT.push_back({os.str()});
+            }
+        }
+    }
+}
+
+void expandMacro(const string& macroName, const vector<string>& actualArgs, vector<string>& output);
+
+void pass2(vector<string>& output) {
+    for (size_t i = 0; i < input.size(); ++i) {
+        string line = input[i];
+        vector<string> tokens = split(line);
+
+        if (tokens.empty()) continue;
+
+        if (tokens[0] == "MACRO") {
+            // Skip macro body
+            while (i < input.size() && input[i] != "MEND") ++i;
+            continue;
+        }
+
+        if (MNTMap.find(tokens[0]) != MNTMap.end()) {
+            // Macro call
+            string macroName = tokens[0];
+            vector<string> actualArgs(tokens.begin() + 1, tokens.end());
+            for (auto& a : actualArgs)
+                a.erase(remove(a.begin(), a.end(), ','), a.end());
+            expandMacro(macroName, actualArgs, output);
+        } else {
+            output.push_back(line);
+        }
+    }
+}
+
+void expandMacro(const string& macroName, const vector<string>& actualArgs, vector<string>& output) {
+    int mdtIndex = MNT[MNTMap[macroName]].mdtIndex;
+
+    while (MDT[mdtIndex].line != "MEND") {
+        vector<string> tokens = split(MDT[mdtIndex].line);
+        for (auto& tok : tokens) {
+            if (tok.find("(P,") != string::npos) {
+                int idx = tok[3] - '0'; // assume single-digit index
+                if (idx < actualArgs.size())
+                    tok = actualArgs[idx];
+            }
+        }
+
+        // Recursively expand if a macro is found
+        if (!tokens.empty() && MNTMap.find(tokens[0]) != MNTMap.end()) {
+            string innerMacro = tokens[0];
+            vector<string> innerArgs(tokens.begin() + 1, tokens.end());
+            expandMacro(innerMacro, innerArgs, output);
+        } else {
+            ostringstream os;
+            for (auto& t : tokens) os << t << " ";
+            output.push_back(os.str());
+        }
+
+        ++mdtIndex;
+    }
+}
+
+int main() {
+    vector<string> intermediate;
+
+    pass1();            // Build MNT and MDT
+    pass2(intermediate); // Expand macros
+
+    cout << "\n--- Intermediate Code ---\n";
+    for (const auto& line : intermediate) {
+        cout << line << endl;
+    }
+
+    return 0;
+}

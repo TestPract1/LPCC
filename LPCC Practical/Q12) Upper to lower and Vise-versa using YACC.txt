@@ -1,0 +1,94 @@
+1) caseconv.l file
+
+
+%option noyywrap
+%{
+#include "caseconv.tab.h"
+#include <cstring>
+extern std::string currentWord;
+%}
+
+%%
+
+[a-zA-Z]+    {
+                currentWord = yytext;
+                return WORD;
+             }
+
+.|\n         { /* ignore anything else */ }
+
+%%
+
+
+
+2) caseconv.y file
+
+
+%{
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <cctype>
+using namespace std;
+
+extern int yylex();
+void yyerror(const char* s) {
+    cerr << "Error: " << s << endl;
+}
+
+string currentWord;
+istringstream inputStream;
+
+int yylex() {
+    static string word;
+    if (!(inputStream >> word)) return 0;
+    currentWord = word;
+    extern char* yytext;
+    yytext = const_cast<char*>(word.c_str());
+    return WORD;
+}
+
+%}
+
+%token WORD
+
+%%
+
+input:
+    word_list
+    ;
+
+word_list:
+    word word_list
+  | word
+  ;
+
+word:
+    WORD {
+        string converted;
+        for (char c : currentWord) {
+            if (islower(c)) converted += toupper(c);
+            else if (isupper(c)) converted += tolower(c);
+            else converted += c;
+        }
+        cout << currentWord << " → " << converted << endl;
+    }
+    ;
+
+%%
+
+int main() {
+    string testInput = "Pune PUNE";
+    inputStream.str(testInput);
+    yyparse();
+    return 0;
+}
+
+
+
+3) How to Run :
+
+bison -d caseconv.y         # Generates caseconv.tab.c and caseconv.tab.h
+flex caseconv.l             # Generates lex.yy.c
+g++ caseconv.tab.c lex.yy.c -o case_converter -lfl
+./case_converter

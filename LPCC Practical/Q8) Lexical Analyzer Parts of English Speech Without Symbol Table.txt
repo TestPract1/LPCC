@@ -1,0 +1,50 @@
+1)HardCoded Input:
+
+Human Beings have a strong dramatic instinct toward binary thinking, a basic urge to divide things into two distinct groups, with nothing but an empty gap in between.
+
+
+2)"pos.l" file:
+
+%option noyywrap c++
+%{
+#include <iostream>
+#include <string>
+#include <unordered_set>
+using namespace std;
+
+#define YY_DECL int yyFlexLexer::yylex()
+
+#include <FlexLexer.h>
+
+%}
+
+%%
+
+[Hh]uman|[Bb]eings|[Ii]nstinct|[Tt]hings|[Gg]roups|[Gg]ap    { cout << "NOUN\t\t" << yytext << endl; }
+[Hh]ave|[Dd]ivide                                       { cout << "VERB\t\t" << yytext << endl; }
+[Aa]strong|[Dd]ramatic|[Bb]inary|[Bb]asic|[Ee]mpty|[Dd]istinct  { cout << "ADJECTIVE\t" << yytext << endl; }
+[Aa]       { cout << "ARTICLE\t\t" << yytext << endl; }
+[Tt]oward|[Ww]ith|[Ii]n                               { cout << "PREPOSITION\t" << yytext << endl; }
+[Bb]ut                                           { cout << "CONJUNCTION\t" << yytext << endl; }
+[Aa]n                                           { cout << "ARTICLE\t\t" << yytext << endl; }
+[0-9]+|[a-zA-Z]+                                  { cout << "UNKNOWN\t\t" << yytext << endl; }
+[\n\t\r ,.!;:]+                                   { /* skip whitespace and punctuation */ }
+
+%%
+
+int main() {
+    string input = "Human Beings have a strong dramatic instinct toward binary thinking, a basic urge to divide things into two distinct groups, with nothing but an empty gap in between.";
+    istringstream iss(input);
+    yyFlexLexer lexer(&iss);
+    lexer.yylex();
+    return 0;
+}
+
+
+
+3) How to Run :
+
+flex++ pos.l       # Generates lex.yy.cc
+g++ lex.yy.cc -o pos_analyzer -lfl
+./pos_analyzer
+

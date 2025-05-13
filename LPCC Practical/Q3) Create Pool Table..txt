@@ -1,0 +1,90 @@
+#include <iostream>
+#include <vector>
+#include <map>
+#include <set>
+#include <sstream>
+using namespace std;
+
+struct Literal {
+    string value;
+    int address;
+};
+
+int main() {
+    vector<string> code = {
+        "START 100",
+        "READ A",
+        "MOVER AREG, ='1'",
+        "MOVEM AREG, B",
+        "MOVER BREG, ='6'",
+        "ADD AREG, BREG",
+        "COMP AREG, A",
+        "BC GT, LAST",
+        "LTORG",
+        "NEXT SUB AREG, ='1'",
+        "MOVER CREG, B",
+        "ADD CREG, ='8'",
+        "MOVEM CREG, B",
+        "PRINT B",
+        "LAST STOP",
+        "A DS 1",
+        "B DS 1",
+        "END"
+    };
+
+    vector<Literal> literalTable;
+    vector<int> poolTable;
+    set<string> literalSet;
+    int locationCounter = 0;
+
+    poolTable.push_back(1); // First pool starts at 1 (1-based indexing)
+
+    for (string line : code) {
+        istringstream iss(line);
+        string token;
+        vector<string> tokens;
+        while (iss >> token) {
+            tokens.push_back(token);
+        }
+
+        if (tokens.size() == 0) continue;
+
+        if (tokens[0] == "START") {
+            locationCounter = stoi(tokens[1]);
+            continue;
+        }
+
+        for (string word : tokens) {
+            if (word.find("='") != string::npos) {
+                if (word.back() == ',') word.pop_back();
+                if (literalSet.find(word) == literalSet.end()) {
+                    literalSet.insert(word);
+                    literalTable.push_back({word, -1});
+                }
+            }
+        }
+
+        if (line.find("LTORG") != string::npos || line.find("END") != string::npos) {
+            for (auto &lit : literalTable) {
+                if (lit.address == -1) {
+                    lit.address = locationCounter++;
+                }
+            }
+            if (line.find("LTORG") != string::npos)
+                poolTable.push_back(literalTable.size() + 1); // next pool start (1-based)
+
+            if (line.find("END") != string::npos)
+                break;
+        } else {
+            locationCounter++;
+        }
+    }
+
+    cout << "Pool Table:\n";
+    cout << "#\tLiteral Index\n";
+    for (size_t i = 0; i < poolTable.size() - 1; ++i) {
+        cout << i + 1 << "\t" << poolTable[i] << "\n";
+    }
+
+    return 0;
+}

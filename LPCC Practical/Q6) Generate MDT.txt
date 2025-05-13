@@ -1,0 +1,109 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <map>
+#include <algorithm>
+
+using namespace std;
+
+vector<string> input = {
+    "LOAD A",
+    "STORE B",
+    "MACRO ABC",
+    "LOAD p",
+    "SUB q",
+    "MEND",
+    "MACRO ADD1 ARG",
+    "LOAD X",
+    "STORE ARG",
+    "MEND",
+    "MACRO ADD5 A1, A2, A3",
+    "STORE A2",
+    "ADD1 5",
+    "ADD1 10",
+    "LOAD A1",
+    "LOAD A3",
+    "MEND",
+    "ABC",
+    "ADD5 D1, D2, D3",
+    "END"
+};
+
+vector<string> split(const string& str, char delim = ' ') {
+    stringstream ss(str);
+    string token;
+    vector<string> tokens;
+    while (getline(ss, token, delim)) {
+        if (!token.empty()) tokens.push_back(token);
+    }
+    return tokens;
+}
+
+int main() {
+    vector<string> MDT;
+    vector<string> ALA;  // Argument List Array
+    bool inMacro = false;
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        string line = input[i];
+        vector<string> tokens = split(line);
+
+        if (tokens.empty()) continue;
+
+        if (tokens[0] == "MACRO") {
+            inMacro = true;
+            ALA.clear();
+
+            // Handle macro header
+            vector<string> header = split(tokens[1]);  // e.g., ADD5 A1, A2, A3
+            string macroName = header[0];
+
+            // Parse arguments
+            for (size_t j = 1; j < header.size(); ++j) {
+                string arg = header[j];
+                arg.erase(remove(arg.begin(), arg.end(), ','), arg.end());
+                ALA.push_back(arg);
+            }
+
+            // Read macro body
+            while (++i < input.size()) {
+                string macroLine = input[i];
+                vector<string> macroTokens = split(macroLine);
+
+                if (macroTokens.empty()) continue;
+                if (macroTokens[0] == "MEND") {
+                    MDT.push_back("MEND");
+                    break;
+                }
+
+                // Replace formal args with (P,n)
+                for (auto& tok : macroTokens) {
+                    for (size_t a = 0; a < ALA.size(); ++a) {
+                        if (tok == ALA[a]) {
+                            tok = "(P," + to_string(a) + ")";
+                            break;
+                        }
+                    }
+                }
+
+                // Recombine line
+                ostringstream oss;
+                for (auto& t : macroTokens)
+                    oss << t << " ";
+                MDT.push_back(oss.str());
+            }
+
+            inMacro = false;
+        }
+    }
+
+    // Print MDT
+    cout << "--- Macro Definition Table (MDT) ---\n";
+    int index = 0;
+    for (const auto& line : MDT) {
+        cout << index++ << "\t" << line << endl;
+    }
+
+    return 0;
+}

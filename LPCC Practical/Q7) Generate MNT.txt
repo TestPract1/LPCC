@@ -1,0 +1,85 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <map>
+#include <algorithm>
+
+using namespace std;
+
+// Structure for Macro Name Table entries
+struct MNTEntry {
+    string macroName;
+    int mdtIndex;
+};
+
+vector<string> input = {
+    "LOAD F",
+    "STORE E",
+    "MACRO SRS",
+    "LOAD s",
+    "SUB t",
+    "MEND",
+    "MACRO SRS XYZ",
+    "LOAD U",
+    "STORE XYZ",
+    "MEND",
+    "MACRO ADD1 Si, Sii, Siii",
+    "LOAD Sii",
+    "ADD3 1",
+    "SRS 11",
+    "STORE Si",
+    "STORE Siii",
+    "MEND",
+    "SRS",
+    "ADD1 C1, C2, C3",
+    "END"
+};
+
+// Split string into tokens by a delimiter (space by default)
+vector<string> split(const string& str, char delim = ' ') {
+    stringstream ss(str);
+    string token;
+    vector<string> tokens;
+    while (getline(ss, token, delim)) {
+        if (!token.empty()) tokens.push_back(token);
+    }
+    return tokens;
+}
+
+int main() {
+    vector<MNTEntry> MNT;
+    int mdtIndex = 0; // MDT pointer simulation
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        string line = input[i];
+        vector<string> tokens = split(line);
+
+        if (tokens.empty()) continue;
+
+        if (tokens[0] == "MACRO") {
+            // Next token(s) contain macro name and optionally parameters
+            if (tokens.size() >= 2) {
+                string macroLine = tokens[1];
+                vector<string> macroDef = split(macroLine);
+                string macroName = macroDef[0];
+                MNT.push_back({macroName, mdtIndex});
+            }
+
+            // Read until MEND to simulate MDT entries
+            while (++i < input.size() && input[i] != "MEND") {
+                ++mdtIndex;
+            }
+            ++mdtIndex; // For MEND itself
+        }
+    }
+
+    // Print MNT
+    cout << "--- Macro Name Table (MNT) ---\n";
+    cout << "Index\tMacro Name\tMDT Index\n";
+    for (size_t i = 0; i < MNT.size(); ++i) {
+        cout << i << "\t" << MNT[i].macroName << "\t\t" << MNT[i].mdtIndex << "\n";
+    }
+
+    return 0;
+}

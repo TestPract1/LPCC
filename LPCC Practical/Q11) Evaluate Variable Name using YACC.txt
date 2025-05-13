@@ -1,0 +1,83 @@
+1) var.l file
+
+
+%option noyywrap
+%{
+#include "var.tab.h"
+#include <cstring>
+%}
+
+%%
+
+[a-z][a-zA-Z0-9_]*  { return VALID_VAR; }
+.|\n                { return INVALID_VAR; }
+
+%%
+
+
+
+2) var.y file
+
+
+
+%{
+#include <iostream>
+#include <sstream>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+extern int yylex();
+void yyerror(const char* s) {
+    cerr << "Error: " << s << endl;
+}
+
+istringstream inputStream;
+string currentToken;
+int yylex() {
+    if (!(inputStream >> currentToken)) return 0;
+    extern char* yytext;
+    yytext = const_cast<char*>(currentToken.c_str());
+    return currentToken[0] >= 'a' && currentToken[0] <= 'z' &&
+           currentToken.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == string::npos
+           ? VALID_VAR : INVALID_VAR;
+}
+%}
+
+%token VALID_VAR INVALID_VAR
+
+%%
+
+input:
+    variable_list
+    ;
+
+variable_list:
+    variable variable_list
+  | variable
+  ;
+
+variable:
+    VALID_VAR     { cout << $1 << " : VALID VARIABLE" << endl; }
+  | INVALID_VAR   { cout << currentToken << " : INVALID VARIABLE" << endl; }
+  ;
+
+%%
+
+int main() {
+    // Hardcoded test inputs
+    string testInput = "pune PUNE Pune1 pUNE_2";
+    inputStream.str(testInput);
+    yyparse();
+    return 0;
+}
+
+
+
+3) How to Run :
+
+bison -d var.y           # creates var.tab.c and var.tab.h
+flex var.l               # creates lex.yy.c
+g++ var.tab.c lex.yy.c -o var_checker -lfl
+./var_checker

@@ -1,0 +1,54 @@
+1) "lex.l" file
+
+%option noyywrap c++
+%{
+#include <iostream>
+#include <string>
+#include <sstream>
+using namespace std;
+
+#define YY_DECL int yyFlexLexer::yylex()
+
+#include <FlexLexer.h>
+%}
+
+%%
+
+"int"            { cout << "KEYWORD\t\t" << yytext << endl; }
+"printf"         { cout << "KEYWORD\t\t" << yytext << endl; }
+[0-9]+           { cout << "NUMBER\t\t" << yytext << endl; }
+\"([^\"\\]|\\.)*\"  { cout << "STRING_LITERAL\t" << yytext << endl; }
+"=="|"<="|">="|"!="|"<"|">" { cout << "REL_OP\t\t" << yytext << endl; }
+"="              { cout << "ASSIGN_OP\t" << yytext << endl; }
+";"              { cout << "SEMICOLON\t" << yytext << endl; }
+","              { cout << "COMMA\t\t" << yytext << endl; }
+"("              { cout << "LPAREN\t\t" << yytext << endl; }
+")"              { cout << "RPAREN\t\t" << yytext << endl; }
+"{"              { cout << "LBRACE\t\t" << yytext << endl; }
+"}"              { cout << "RBRACE\t\t" << yytext << endl; }
+[a-zA-Z_][a-zA-Z0-9_]* { cout << "IDENTIFIER\t" << yytext << endl; }
+[\n\t\r ]+       { /* ignore whitespace */ }
+.                { cout << "UNKNOWN\t\t" << yytext << endl; }
+
+%%
+
+int main() {
+    string input = R"({
+int total =100;
+inti=10;
+printf("The value of total and i is : %d, %d", total, i);
+})";
+
+    istringstream iss(input);
+    yyFlexLexer lexer(&iss);
+    lexer.yylex();
+    return 0;
+}
+
+
+
+2) How to Run : 
+
+flex++ lex.l             # generates lex.yy.cc
+g++ lex.yy.cc -o c_lexer -lfl
+./c_lexer

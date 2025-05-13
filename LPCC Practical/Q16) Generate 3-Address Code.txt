@@ -1,0 +1,139 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <cctype>
+#include <sstream>
+#include <map>
+
+using namespace std;
+
+// Operators precedence
+map<char, int> precedence = {
+    {'^', 3}, {'*', 2}, {'/', 2},
+    {'+', 1}, {'-', 1}
+};
+
+struct Node {
+    string value;
+    Node* left;
+    Node* right;
+    Node(string v) : value(v), left(nullptr), right(nullptr) {}
+};
+
+// Tokenize expression
+vector<string> tokenize(const string& expr) {
+    vector<string> tokens;
+    string current;
+    for (char ch : expr) {
+        if (isspace(ch)) continue;
+        if (isalnum(ch)) {
+            current += ch;
+        } else {
+            if (!current.empty()) {
+                tokens.push_back(current);
+                current.clear();
+            }
+            string op(1, ch);
+            tokens.push_back(op);
+        }
+    }
+    if (!current.empty()) tokens.push_back(current);
+    return tokens;
+}
+
+// Convert infix to postfix (Shunting Yard)
+vector<string> toPostfix(const vector<string>& tokens) {
+    vector<string> output;
+    vector<string> opstack;
+    for (string token : tokens) {
+        if (isalnum(token[0])) {
+            output.push_back(token);
+        } else if (token == "(") {
+            opstack.push_back(token);
+        } else if (token == ")") {
+            while (!opstack.empty() && opstack.back() != "(") {
+                output.push_back(opstack.back());
+                opstack.pop_back();
+            }
+            opstack.pop_back(); // pop '('
+        } else { // operator
+            while (!opstack.empty() && opstack.back() != "(" &&
+                   precedence[opstack.back()[0]] >= precedence[token[0]]) {
+                output.push_back(opstack.back());
+                opstack.pop_back();
+            }
+            opstack.push_back(token);
+        }
+    }
+    while (!opstack.empty()) {
+        output.push_back(opstack.back());
+        opstack.pop_back();
+    }
+    return output;
+}
+
+// Build expression tree from postfix
+Node* buildTree(const vector<string>& postfix) {
+    vector<Node*> stack;
+    for (auto token : postfix) {
+        if (isalnum(token[0])) {
+            stack.push_back(new Node(token));
+        } else {
+            Node* right = stack.back(); stack.pop_back();
+            Node* left = stack.back(); stack.pop_back();
+            Node* op = new Node(token);
+            op->left = left;
+            op->right = right;
+            stack.push_back(op);
+        }
+    }
+    return stack.back();
+}
+
+// Generate Three Address Code
+int tempCount = 1;
+string generateTAC(Node* node, vector<string>& code) {
+    if (!node->left && !node->right)
+        return node->value;
+
+    string left = generateTAC(node->left, code);
+    string right = generateTAC(node->right, code);
+    string temp = "t" + to_string(tempCount++);
+    code.push_back(temp + " = " + left + " " + node->value + " " + right);
+    return temp;
+}
+
+void processExpression(string input) {
+    cout << "\nInput: " << input << endl;
+    size_t eq = input.find('=');
+    string lhs = input.substr(0, eq);
+    string rhs = input.substr(eq + 1);
+
+    vector<string> tokens = tokenize(rhs);
+    vector<string> postfix = toPostfix(tokens);
+    Node* root = buildTree(postfix);
+
+    vector<string> tac;
+    tempCount = 1;
+    string result = generateTAC(root, tac);
+    for (string line : tac) {
+        cout << line << endl;
+    }
+    cout << lhs << " = " << result << endl;
+}
+
+// ---------------- MAIN -------------------
+
+int main() {
+    vector<string> expressions = {
+        "a = m * n - o - p / q",
+        "a = f ^ r - u * f * t - p",
+        "a = ( b * b + c * c ) * (p - q - r)"
+    };
+
+    for (const auto& expr : expressions) {
+        processExpression(expr);
+    }
+
+    return 0;
+}

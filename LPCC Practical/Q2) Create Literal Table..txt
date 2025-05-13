@@ -1,0 +1,77 @@
+#include <iostream>
+#include <vector>
+#include <map>
+#include <sstream>
+using namespace std;
+
+int main() {
+    vector<string> code = {
+        "START 100",
+        "READ A",
+        "READ B",
+        "MOVER AREG, ='50'",
+        "MOVER BREG, ='60'",
+        "ADD AREG, BREG",
+        "LOOP MOVER CREG, A",
+        "ADD CREG, ='10'",
+        "COMP CREG, B",
+        "BC LT, LOOP",
+        "NEXT SUB AREG, ='10'",
+        "COMP AREG, B",
+        "BC GT, NEXT",
+        "STOP",
+        "A DS 1",
+        "B DS 1",
+        "END"
+    };
+
+    map<string, int> literalTable;
+    vector<string> pendingLiterals;
+    int locationCounter = 0;
+
+    for (string line : code) {
+        istringstream iss(line);
+        string token;
+        vector<string> tokens;
+        while (iss >> token) {
+            tokens.push_back(token);
+        }
+
+        if (tokens.size() == 0) continue;
+
+        if (tokens[0] == "START") {
+            locationCounter = stoi(tokens[1]);
+            continue;
+        }
+
+        for (const string& word : tokens) {
+            if (word.find("='") != string::npos) {
+                string literal = word;
+                // Strip commas if any
+                if (literal.back() == ',') literal.pop_back();
+                if (literalTable.find(literal) == literalTable.end()) {
+                    pendingLiterals.push_back(literal);
+                }
+            }
+        }
+
+        if (tokens[0] == "END") {
+            for (const string& lit : pendingLiterals) {
+                if (literalTable.find(lit) == literalTable.end()) {
+                    literalTable[lit] = locationCounter++;
+                }
+            }
+            break;
+        } else {
+            locationCounter++;
+        }
+    }
+
+    cout << "Literal Table:\n";
+    cout << "Literal\tAddress\n";
+    for (const auto& pair : literalTable) {
+        cout << pair.first << "\t" << pair.second << "\n";
+    }
+
+    return 0;
+}

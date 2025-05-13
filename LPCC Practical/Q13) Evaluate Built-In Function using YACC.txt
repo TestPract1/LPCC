@@ -1,0 +1,113 @@
+1) func.l file
+
+
+%option noyywrap
+%{
+#include "func.tab.h"
+#include <cstring>
+%}
+
+%%
+
+[ \t\n]+           ; // skip whitespace
+[0-9]+             { yylval.fval = atof(yytext); return NUMBER; }
+\"[a-zA-Z]*\"      { yylval.sval = strdup(yytext); return STRING; }
+
+"="                return EQUAL;
+"sqrt"             return SQRT;
+"strlen"           return STRLEN;
+[a-zA-Z_][a-zA-Z0-9_]*  { yylval.sval = strdup(yytext); return IDENTIFIER; }
+"("                return LPAREN;
+")"                return RPAREN;
+
+.                  return yytext[0];
+%%
+
+
+
+2) func.y file
+
+
+%{
+#include <iostream>
+#include <cmath>
+#include <cstring>
+#include <string>
+#include <unordered_map>
+using namespace std;
+
+extern int yylex();
+void yyerror(const char *s) { cerr << "Error: " << s << endl; }
+
+unordered_map<string, double> variables;
+
+%}
+
+%union {
+    double fval;
+    char* sval;
+}
+
+%token <fval> NUMBER
+%token <sval> IDENTIFIER STRING
+
+%token EQUAL SQRT STRLEN
+%token LPAREN RPAREN
+
+%type <fval> expr
+%type <sval> varname
+
+%%
+
+input:
+      input line
+    | line
+    ;
+
+line:
+    varname EQUAL expr {
+        variables[$1] = $3;
+        cout << $1 << " = " << $3 << endl;
+    }
+    ;
+
+varname:
+    IDENTIFIER { $$ = $1; }
+    ;
+
+expr:
+      SQRT LPAREN expr RPAREN   { $$ = sqrt($3); }
+    | STRLEN LPAREN STRING RPAREN {
+          string temp = $3;
+          temp = temp.substr(1, temp.length() - 2); // remove quotes
+          $$ = temp.length();
+          free($3);
+      }
+    | NUMBER                    { $$ = $1; }
+    ;
+
+%%
+
+int main() {
+    string input = R"(u = sqrt(36)
+v = strlen("pune"))";
+
+    istringstream iss(input);
+    string line;
+    while (getline(iss, line)) {
+        YY_BUFFER_STATE bp = yy_scan_string(line.c_str());
+        yyparse();
+        yy_delete_buffer(bp);
+    }
+
+    return 0;
+}
+
+
+
+3) How to Run :
+
+bison -d func.y           # Generates func.tab.c and func.tab.h
+flex func.l               # Generates lex.yy.c
+g++ func.tab.c lex.yy.c -o func_eval -lfl -lm
+./func_eval
