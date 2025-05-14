@@ -5,16 +5,17 @@ Human Beings have a strong dramatic instinct toward binary thinking, a basic urg
 
 2)"pos.l" file:
 
+
 %option noyywrap c++
+
 %{
 #include <iostream>
 #include <string>
+#include <sstream>  // Required for istringstream
 #include <unordered_set>
 using namespace std;
 
 #define YY_DECL int yyFlexLexer::yylex()
-
-#include <FlexLexer.h>
 
 %}
 
@@ -42,9 +43,10 @@ int main() {
 
 
 
+
 3) How to Run :
 
 flex++ pos.l       # Generates lex.yy.cc
-g++ lex.yy.cc -o pos_analyzer -lfl
+g++ lex.yy.cc -o pos_analyzer 
 ./pos_analyzer
 
