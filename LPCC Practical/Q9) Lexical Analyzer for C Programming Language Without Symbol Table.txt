@@ -9,7 +9,6 @@ using namespace std;
 
 #define YY_DECL int yyFlexLexer::yylex()
 
-#include <FlexLexer.h>
 %}
 
 %%
@@ -50,5 +49,5 @@ printf("The value of total and i is : %d, %d", total, i);
 2) How to Run : 
 
 flex++ lex.l             # generates lex.yy.cc
-g++ lex.yy.cc -o c_lexer -lfl
+g++ lex.yy.cc -o c_lexer 
 ./c_lexer
